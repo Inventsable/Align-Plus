@@ -16,8 +16,8 @@
     <Extension Id="com.align-plus.panel">
       <DispatchInfo>
         <Resources>
-          <MainPath>./public/index-dev.html</MainPath>
-          <!-- <MainPath>./dist/index.html</MainPath> -->
+          <MainPath>./dist/index.html</MainPath>
+          <!-- <MainPath>./public/index-dev.html</MainPath> -->
           <CEFCommandLine>
             <Parameter>--enable-nodejs</Parameter>
             <Parameter>--mixed-context</Parameter>
@@ -28,7 +28,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Align-Plus</Menu>
+          <Menu>Align Plus</Menu>
           <Geometry>
             <Size>
               <Height>400</Height>
@@ -39,8 +39,8 @@
               <Width>1000</Width>
             </MaxSize>
             <MinSize>
-              <Height>300</Height>
-              <Width>260</Width>
+              <Height>80</Height>
+              <Width>40</Width>
             </MinSize>
           </Geometry>
           <Icons />

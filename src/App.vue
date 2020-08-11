@@ -1,67 +1,111 @@
 <template>
   <div id="app">
-    <!-- 
-      Dynamic menu component reactively handles all flyout and context menus.
-      https://github.com/Inventsable/brutalism/tree/master/components/Menus
-     -->
-    <Menus
-      refresh
-      debug
-      :context="[
-        {
-          label: 'Learn more',
-          enabled: false,
-        },
-        {
-          label: 'Log menu item with callback',
-          checkable: true,
-          checked: true,
-          callback: checkMenu,
-        },
-        {
-          label: 'Test evalScript',
-          callback: runTestScript,
-        },
-        {
-          label: 'Supporting infinite nesting!',
-          menu: [
-            {
-              label: 'Hello',
-              menu: [{ label: 'World' }],
-            },
-          ],
-        },
-      ]"
-      @contextClick="testClick"
-      :flyout="[
-        {
-          label: 'This flyout menu has a JSON structure!',
-        },
-      ]"
+    <Menus refresh debug :context="dynamicContextMenu" />
+    <Watcher
+      v-model="selectionLength"
+      property="app.selection.length"
+      :interval="200"
     />
-    <!-- 
-      Panel is a special wrapper meant for Adobe hosts to handle style, script loading, scrollbars and more.
-      For best results always use it as the parent of any content or a router-view.
-      https://github.com/Inventsable/brutalism/tree/master/components/Panel
-    -->
-    <Panel>
+    <Panel
+      script-path="./host/[appName]"
+      @mouseenter="inside = true"
+      @mouseleave="inside = false"
+      @resize="(val) => (size.width = val.width)"
+    >
       <Wrapper>
-        <battleaxe-logo />
-        <brutalism-title subtitle="basic" />
-        <Button-Group>
-          <Button block goto="https://battleaxe.dev/brutalism-docs/#/"
-            >See the docs</Button
-          >
+        <Grid v-if="isGridDisplay" :template="dynamicGridTemplate">
           <Button
-            block
-            goto="https://github.com/Inventsable/brutalism#-brutalism"
-            >See the code</Button
-          >
+            v-for="(item, i) in extraFuncs"
+            :key="i"
+            @clickevt="switchMode(item)"
+            ><Icons
+              :color="
+                item.active ? 'var(--color-selection)' : 'var(--color-default)'
+              "
+              :name="item.icon"
+          /></Button>
+        </Grid>
+        <!-- If panel is wide, use flexbox -->
+        <Button-Group v-else>
           <Button
-            block
-            goto="https://github.com/Inventsable/brutalism/issues/new"
-            >Report a bug</Button
-          >
+            width="30px"
+            flat
+            v-for="(item, i) in extraFuncs"
+            :key="i"
+            @clickevt="switchMode(item)"
+            ><Icons
+              :color="
+                item.active ? 'var(--color-selection)' : 'var(--color-default)'
+              "
+              :name="item.icon"
+          /></Button>
+        </Button-Group>
+        <Divider v-if="size.width > 70" />
+
+        <!-- <Anno
+          v-if="notMini && this.showAnno"
+          style="height: 16px; white-space: nowrap;"
+          size="10px"
+          :color="
+            `var(--color-${this.hasAnno ? 'default' : 'scrollbar-arrow'})`
+          "
+          >{{ anno }}</Anno
+        > -->
+        <!-- If panel is thin, become CSS grid so buttons expand in size -->
+        <Grid v-if="isGridDisplay" :template="dynamicGridTemplate">
+          <Button
+            v-for="(item, i) in list"
+            :key="i"
+            :disabled="!canUsePathfinder"
+            @clickevt="clickHandler(item, $event)"
+            @mouseenter="currentTool = item.icon"
+            @mouseleave="currentTool = null"
+            ><Icons :name="item.icon"
+          /></Button>
+        </Grid>
+        <!-- If panel is wide, use flexbox -->
+        <Button-Group v-else>
+          <Button
+            width="30px"
+            flat
+            v-for="(item, i) in list"
+            :key="i"
+            @clickevt="clickHandler(item, $event)"
+            :disabled="!canUsePathfinder"
+            @mouseenter="currentTool = item.icon"
+            @mouseleave="currentTool = null"
+            ><Icons :name="item.icon"
+          /></Button>
+        </Button-Group>
+        <Divider v-if="size.width > 70" />
+        <Grid v-if="isGridDisplay" :template="dynamicGridTemplate">
+          <Button
+            v-for="(item, i) in extraList"
+            :key="i"
+            :disabled="true"
+            @clickevt="distributeHandler(item, $event)"
+            @mouseenter="currentTool = item.icon"
+            @mouseleave="currentTool = null"
+            ><Icons :name="item.icon"
+          /></Button>
+          <div class="centered">
+            <Input-Scroll v-model="spacing" flat :min="0" />
+          </div>
+        </Grid>
+        <!-- If panel is wide, use flexbox -->
+        <Button-Group v-else>
+          <Button
+            width="30px"
+            flat
+            v-for="(item, i) in extraList"
+            :key="i"
+            @clickevt="distributeHandler(item, $event)"
+            :disabled="true"
+            @mouseenter="currentTool = item.icon"
+            @mouseleave="currentTool = null"
+            ><Icons :name="item.icon"
+          /></Button>
+          <Input-Scroll v-model="spacing" flat />
         </Button-Group>
       </Wrapper>
     </Panel>
@@ -69,52 +113,309 @@
 </template>
 
 <script>
-/*
-  Panel component above also includes:
-    - Starlette UI theme and color library: 
-      https://github.com/Inventsable/starlette
-    - CEP-Spy identification and app utility:
-      https://github.com/Inventsable/cep-spy
-    - Cluecumber script utilities (passed through brutalism):
-      https://github.com/Inventsable/cluecumber
- These are still installed into this panel and can be used whenever needed:
- import spy from 'cep-spy'
-
- NOTES: 
-  - Brutalism's main components are made globally available in ./src/main.js. There's no need to import them individually!
-  - Need CSInterface or a script? You can use the script-path attribute of Panel to launch scripts or utilities:
-    https://github.com/Inventsable/lokney/tree/master/components/Panel
-  - Need Chrome DevTools for debugging? You'll need to launch the CEFClient from here with the localhost:[port] of this app in ./.debug:
-    https://github.com/Adobe-CEP/CEP-Resources/tree/master/CEP_9.x
-*/
-
-import { evalScript } from "brutalism";
+import { evalScript, copy } from "brutalism";
+import spy from "cep-spy";
 export default {
   components: {
-    "battleaxe-logo": require("./components/battleaxeLogo.vue").default,
-    "brutalism-title": require("./components/brutalismTitle.vue").default,
+    Icons: require("./components/Icons.vue").default,
+  },
+  computed: {
+    hasAnno() {
+      return this.showAnno && this.currentTool && this.currentTool.length;
+    },
+    anno() {
+      return this.currentTool
+        ? this.capitalizePhrase(this.currentTool)
+        : "None";
+    },
+    canUsePathfinder() {
+      return this.selectionLength > 1 || !this.useResponsiveToolbar;
+    },
+    notMini() {
+      return this.size.width > 70;
+    },
+    activeExtraFunc() {
+      return this.extraFuncs.find((item) => {
+        return item.active;
+      });
+    },
+    activeMode() {
+      return this.activeExtraFunc.icon[0];
+    },
+    dynamicGridTemplate() {
+      return this.size.width < 88
+        ? `1fr`
+        : this.size.width < 128
+        ? "1fr 1fr"
+        : "1fr 1fr 1fr";
+    },
+    dynamicContextMenu() {
+      return [
+        {
+          label: "Responsive UI",
+          checkable: true,
+          checked: this.useResponsiveToolbar,
+          callback: this.assignResponsiveUI,
+        },
+        {
+          label: "Extra functions",
+          checkable: true,
+          checked: this.hasExtraFuncs,
+          callback: this.assignExtras,
+        },
+        {
+          label: "Retain selection",
+          checkable: true,
+          checked: this.combSelection,
+          callback: this.assignCombSelection,
+        },
+        {
+          label: "Live preview",
+          checkable: true,
+          enabled: false,
+          checked: false,
+          callback: this.assignPreview,
+        },
+      ];
+    },
+    prefs() {
+      return {
+        useResponsiveToolbar: this.useResponsiveToolbar,
+        combSelection: this.combSelection,
+        showAnno: this.showAnno,
+      };
+    },
+    dynamicButtonList() {
+      if (this.hasExtraFuncs) {
+        let list = [].concat(this.extraFuncs, this.list);
+        return [].concat(list, this.extraList);
+      } else {
+        return this.list;
+      }
+    },
+  },
+  mounted() {
+    this.reset();
+    this.getPrefs();
+    // console.log(this.dynamicButtonList);
+  },
+  data: () => ({
+    currentTool: "",
+    useResponsiveToolbar: true,
+    selectionLength: 0,
+    spacing: 0,
+    showAnno: true,
+    alignTo: "selection",
+    hasExtraFuncs: true,
+    combSelection: true,
+    isGridDisplay: null,
+    enablePreview: false,
+    isAlt: false,
+    inside: false,
+    size: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    extraFuncs: [
+      {
+        icon: "artboard",
+        active: false,
+      },
+      {
+        icon: "selection",
+        active: true,
+      },
+    ],
+    extraList: [
+      {
+        icon: "distribute-horizontal",
+      },
+      {
+        icon: "distribute-vertical",
+      },
+    ],
+    list: [
+      {
+        icon: "align-horizontal-left",
+      },
+      {
+        icon: "align-horizontal-center",
+      },
+      {
+        icon: "align-horizontal-right",
+      },
+      {
+        icon: "align-vertical-top",
+      },
+      {
+        icon: "align-vertical-center",
+      },
+      {
+        icon: "align-vertical-bottom",
+      },
+      {
+        icon: "distribute-horizontal-left",
+      },
+      {
+        icon: "distribute-horizontal-center",
+      },
+      {
+        icon: "distribute-horizontal-right",
+      },
+      {
+        icon: "distribute-vertical-top",
+      },
+      {
+        icon: "distribute-vertical-center",
+      },
+      {
+        icon: "distribute-vertical-bottom",
+      },
+    ],
+  }),
+  watch: {
+    "size.width"(val) {
+      this.isGridDisplay = val < 160;
+    },
+    prefs: {
+      handler(val) {
+        this.setPrefs(val);
+      },
+      deep: true,
+    },
+    currentTool(val) {
+      // console.log(val);
+      // if (this.selectionLength > 1) {
+      //   if (val && val.length) this.$refs.preview.grabSelection();
+      // } else {
+      //   console.log("NONE");
+      // }
+    },
   },
   methods: {
-    testClick(item) {
-      console.log("Context menu click:", item);
+    switchMode(item) {
+      this.makeActiveMode(item);
+      item.active = true;
     },
-    checkMenu(item, index, val) {
-      console.log(item, index, val);
+    makeActiveMode(item) {
+      this.extraFuncs.forEach((f) => {
+        f.active = item == f;
+      });
     },
-    // Can invoke any function as await evalScript(`functionName('${parameterVar}')`) if script is preloaded
-    // Check out the "script-path" prop of <Panel> component above for easy script file load.
-    async runTestScript() {
-      let result = await evalScript(`
-        function test() {
-          alert('Hello world!')
-          return 'result from JSX file'
-        }
-        test();
-      `);
-      console.log(result);
+    reset() {
+      this.currentTool = null;
+      this.isGridDisplay = window.innerWidth < 150;
+    },
+    assignShowAnno(v, i, a) {
+      this.showAnno = a;
+    },
+    assignResponsiveUI(v, i, a) {
+      this.useResponsiveToolbar = a;
+    },
+    assignCombSelection(v, i, a) {
+      this.combSelection = a;
+    },
+    assignExtras(v, i, a) {
+      this.hasExtraFuncs = a;
+    },
+    assignPreview(v, i, a) {
+      this.enablePreview = a;
+    },
+    async distributeHandler(item, evt) {
+      let opts = this.prefs,
+        result;
+      if (/horizontal/i.test(item.icon))
+        await evalScript(`distributeHorizontalBySpacing(${this.spacing})`);
+      else await evalScript(`distributeVerticalBySpacing(${this.spacing})`);
+    },
+    async clickHandler(item, evt) {
+      let opts = this.prefs;
+      if (!item.code) {
+        let str = `${this.activeMode}-${item.icon
+          .replace(/horizontal/, "hor")
+          .replace(/vertical/, "ver")}`;
+        console.log(str);
+        let result = await evalScript(
+          `executeAction('${str}', '${JSON.stringify(opts)}')`
+        );
+      }
+    },
+    setPrefs(value = null) {
+      if (!value) value = this.prefs;
+      window.localStorage.setItem("align", JSON.stringify(value));
+    },
+    getPrefs() {
+      let data = window.localStorage.getItem("align");
+      data = !data ? this.prefs : JSON.parse(data);
+      Object.keys(data).forEach((key) => {
+        this[key] = data[key];
+      });
+    },
+    capitalizePhrase(phrase) {
+      function capitalize(string) {
+        return string[0].toUpperCase() + string.substring(1);
+      }
+      return !phrase.length
+        ? ""
+        : !/\s/.test(phrase)
+        ? capitalize(phrase)
+        : phrase
+            .split(" ")
+            .map((item) => {
+              return capitalize(item);
+            })
+            .join(" ");
     },
   },
 };
 </script>
 
-<style></style>
+<style>
+@media screen and (max-width: 56px) {
+  .panel {
+    padding: 8px 2px;
+  }
+  .row > * {
+    margin-right: 0px;
+  }
+}
+
+@media screen and (max-width: 80px) {
+  .panel {
+    padding: 8px 0px;
+  }
+  .row > * {
+    margin-right: 0px;
+  }
+}
+
+.button.flat {
+  box-sizing: border-box;
+  padding: 4px 2px;
+}
+
+.button {
+  background: transparent !important;
+}
+
+.button:hover {
+  background: var(--button-flat-hover) !important;
+  border-color: var(--button-flat-hover-border);
+}
+
+.button:active {
+  background: var(--button-flat-active) !important;
+  border-color: var(--button-flat-active-border);
+}
+
+.button {
+  box-sizing: border-box;
+  max-width: calc(100vw - 2px);
+  transition: all 100ms var(--quint) 20ms;
+}
+
+.centered {
+  display: flex;
+  justify-content: center;
+}
+</style>
