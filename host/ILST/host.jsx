@@ -1,924 +1,218 @@
-console.log("Host is online");
-function executeAction(name, opts) {
-    var opts = JSON.parse(opts), selection = [];
-    runAction(name);
-}
-function getBoundingBoxOfSelection() {
-    var selection = get("selection");
-    var x1 = selection.map(function (item) { return item.visibleBounds[0]; }).min();
-    var x2 = selection.map(function (item) { return item.visibleBounds[2]; }).max();
-    var y1 = selection.map(function (item) { return item.visibleBounds[1]; }).max();
-    var y2 = selection.map(function (item) { return item.visibleBounds[3]; }).min();
-    return [x1, y1, x2, y2];
-}
-function selectInverse(items) {
-    get("pageItems")
-        .filter(function (item) {
-        return !items.includes(item.uuid);
-    })
-        .forEach(function (item) {
-        item.selected = true;
+console.log("HOST LOADING...");
+function alignTo(params, opts) {
+    if (!app.selection.length)
+        return null;
+    params = JSON.parse(params);
+    opts = JSON.parse(opts);
+    var parentRect = /artboard/i.test(params.type)
+        ? getArtboardBoundingClientRect()
+        : getSelectionBoundingClientRect();
+    var target = parentRect[params.direction];
+    getValidSelectionItems().forEach(function (item) {
+        alignHandler(item, params.direction, target, opts);
     });
 }
-function runAction(name) {
-    var action = getActionByName(name);
-    var tmp = File(Folder.desktop + "/temp.aia");
-    tmp.open("w");
-    tmp.write(action);
-    tmp.close();
-    app.loadAction(tmp);
-    app.doScript(name, "Align-Plus", false);
-    tmp.remove();
-    app.unloadAction("Align-Plus", "");
+function getRealSelectionLength() {
+    return getValidSelectionItems().length;
 }
-function getActionByName(name) {
-    if (name == "s-align-hor-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 18" +
-            "		732d616c69676e2d686f722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 23" +
-            "				486f72697a6f6e74616c20416c69676e2043656e746572" +
-            "			]" +
-            "			/value 2" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-align-hor-left")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 16" +
-            "		732d616c69676e2d686f722d6c656674" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 21" +
-            "				486f72697a6f6e74616c20416c69676e204c656674" +
-            "			]" +
-            "			/value 1" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-align-hor-right")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 17" +
-            "		732d616c69676e2d686f722d7269676874" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 22" +
-            "				486f72697a6f6e74616c20416c69676e205269676874" +
-            "			]" +
-            "			/value 3" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-align-ver-top")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 15" +
-            "		732d616c69676e2d7665722d746f70" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 18" +
-            "				566572746963616c20416c69676e20546f70" +
-            "			]" +
-            "			/value 4" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-align-ver-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 18" +
-            "		732d616c69676e2d7665722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 21" +
-            "				566572746963616c20416c69676e2043656e746572" +
-            "			]" +
-            "			/value 5" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-align-ver-bottom")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 18" +
-            "		732d616c69676e2d7665722d626f74746f6d" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 21" +
-            "				566572746963616c20416c69676e20426f74746f6d" +
-            "			]" +
-            "			/value 6" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-distribute-ver-top")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 20" +
-            "		732d646973747269627574652d7665722d746f70" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 23" +
-            "				566572746963616c204469737472696275746520546f70" +
-            "			]" +
-            "			/value 7" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-distribute-ver-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 23" +
-            "		732d646973747269627574652d7665722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 26" +
-            "				566572746963616c20446973747269627574652043656e746572" +
-            "			]" +
-            "			/value 8" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-distribute-ver-bottom")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 23" +
-            "		732d646973747269627574652d7665722d626f74746f6d" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 26" +
-            "				566572746963616c204469737472696275746520426f74746f6d" +
-            "			]" +
-            "			/value 9" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-distribute-hor-left")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 21" +
-            "		732d646973747269627574652d686f722d6c656674" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 26" +
-            "				486f72697a6f6e74616c2044697374726962757465204c656674" +
-            "			]" +
-            "			/value 10" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-distribute-hor-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 23" +
-            "		732d646973747269627574652d686f722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 28" +
-            "				486f72697a6f6e74616c20446973747269627574652043656e746572" +
-            "			]" +
-            "			/value 11" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "s-distribute-hor-right")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 22" +
-            "		732d646973747269627574652d686f722d7269676874" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 27" +
-            "				486f72697a6f6e74616c2044697374726962757465205269676874" +
-            "			]" +
-            "			/value 12" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-align-hor-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 18" +
-            "		612d616c69676e2d686f722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 23" +
-            "				486f72697a6f6e74616c20416c69676e2043656e746572" +
-            "			]" +
-            "			/value 2" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-align-hor-left")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 16" +
-            "		612d616c69676e2d686f722d6c656674" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 21" +
-            "				486f72697a6f6e74616c20416c69676e204c656674" +
-            "			]" +
-            "			/value 1" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-align-hor-right")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 17" +
-            "		612d616c69676e2d686f722d7269676874" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 22" +
-            "				486f72697a6f6e74616c20416c69676e205269676874" +
-            "			]" +
-            "			/value 3" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-align-ver-top")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 15" +
-            "		612d616c69676e2d7665722d746f70" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 18" +
-            "				566572746963616c20416c69676e20546f70" +
-            "			]" +
-            "			/value 4" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-align-ver-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 18" +
-            "		612d616c69676e2d7665722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 21" +
-            "				566572746963616c20416c69676e2043656e746572" +
-            "			]" +
-            "			/value 5" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-align-ver-bottom")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 18" +
-            "		612d616c69676e2d7665722d626f74746f6d" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 21" +
-            "				566572746963616c20416c69676e20426f74746f6d" +
-            "			]" +
-            "			/value 6" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-distribute-ver-top")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 20" +
-            "		612d646973747269627574652d7665722d746f70" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 23" +
-            "				566572746963616c204469737472696275746520546f70" +
-            "			]" +
-            "			/value 7" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-distribute-ver-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 23" +
-            "		612d646973747269627574652d7665722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 26" +
-            "				566572746963616c20446973747269627574652043656e746572" +
-            "			]" +
-            "			/value 8" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-distribute-ver-bottom")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 23" +
-            "		612d646973747269627574652d7665722d626f74746f6d" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 26" +
-            "				566572746963616c204469737472696275746520426f74746f6d" +
-            "			]" +
-            "			/value 9" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-distribute-hor-left")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 21" +
-            "		612d646973747269627574652d686f722d6c656674" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 26" +
-            "				486f72697a6f6e74616c2044697374726962757465204c656674" +
-            "			]" +
-            "			/value 10" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-distribute-hor-center")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 23" +
-            "		612d646973747269627574652d686f722d63656e746572" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 28" +
-            "				486f72697a6f6e74616c20446973747269627574652043656e746572" +
-            "			]" +
-            "			/value 11" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
-    else if (name == "a-distribute-hor-right")
-        return ("/version 3" +
-            "/name [ 10" +
-            "	416c69676e2d506c7573" +
-            "]" +
-            "/isOpen 1" +
-            "/actionCount 1" +
-            "/action-1 {" +
-            "	/name [ 22" +
-            "		612d646973747269627574652d686f722d7269676874" +
-            "	]" +
-            "	/keyIndex 0" +
-            "	/colorIndex 0" +
-            "	/isOpen 0" +
-            "	/eventCount 1" +
-            "	/event-1 {" +
-            "		/useRulersIn1stQuadrant 0" +
-            "		/internalName (ai_plugin_alignPalette)" +
-            "		/localizedName [ 9" +
-            "			416c69676e6d656e74" +
-            "		]" +
-            "		/isOpen 0" +
-            "		/isOn 1" +
-            "		/hasDialog 0" +
-            "		/parameterCount 1" +
-            "		/parameter-1 {" +
-            "			/key 1954115685" +
-            "			/showInPalette -1" +
-            "			/type (enumerated)" +
-            "			/name [ 27" +
-            "				486f72697a6f6e74616c2044697374726962757465205269676874" +
-            "			]" +
-            "			/value 12" +
-            "		}" +
-            "	}" +
-            "}" +
-            "");
+function distributeTo(params, opts) {
+    alert("Not yet supported");
 }
-console.log("Host is fully loaded");
+function alignHandler(item, key, value, opts) {
+    if (/point/i.test(item.typename))
+        alignPointTo(item, key, value, opts);
+    else
+        alignItemTo(item, key, value, opts);
+}
+function getHandleOffsets(point) {
+    return {
+        left: [
+            (point.anchor[0] - point.leftDirection[0]) * -1,
+            (point.anchor[1] - point.leftDirection[1]) * -1,
+        ],
+        right: [
+            (point.anchor[0] - point.rightDirection[0]) * -1,
+            (point.anchor[1] - point.rightDirection[1]) * -1,
+        ]
+    };
+}
+function alignPointTo(point, key, value, opts) {
+    var handleOffsets = getHandleOffsets(point);
+    var isHorizontal = /left|right/i.test(key);
+    if (/number/i.test(typeof value)) {
+        var computedValue = isHorizontal
+            ? [value, point.anchor[1]]
+            : [point.anchor[0], value];
+        point.anchor = computedValue;
+        if (opts.alignHandles) {
+            point.leftDirection = [
+                computedValue[0] + handleOffsets.left[0],
+                computedValue[1] + handleOffsets.left[1],
+            ];
+            point.rightDirection = [
+                computedValue[0] + handleOffsets.right[0],
+                computedValue[1] + handleOffsets.right[1],
+            ];
+        }
+    }
+    else if (/center/i.test(key)) {
+        var computedValue = [value[0], value[1] * -1];
+        point.anchor = computedValue;
+        if (opts.alignHandles) {
+            point.leftDirection = [
+                computedValue[0] + handleOffsets.left[0],
+                computedValue[1] + handleOffsets.left[1],
+            ];
+            point.rightDirection = [
+                computedValue[0] + handleOffsets.right[0],
+                computedValue[1] + handleOffsets.right[1],
+            ];
+        }
+    }
+}
+function alignItemTo(obj, key, value, opts) {
+    var rect = getBoundingClientRect(obj), target = rect[key];
+    var isHorizontal = /left|right/.test(key), isCenterpoint = !/number/i.test(typeof target);
+    if (isCenterpoint) {
+        var xOffset = rect.left - rect.center[0];
+        var yOffset = rect.top - rect.center[1];
+        var computedValue = [xOffset + value[0], (value[1] + yOffset) * -1];
+        obj.position = computedValue;
+    }
+    else {
+        var offset = isHorizontal ? rect.left - target : rect.top - target;
+        var computedValue = value + offset;
+        computedValue = isHorizontal ? computedValue : computedValue * -1;
+        obj.position = isHorizontal
+            ? [computedValue, obj.position[1]]
+            : [obj.position[0], computedValue];
+    }
+}
+function getValidSelectionItems() {
+    if (!app.selection.length)
+        return null;
+    return get("selection")
+        .map(function (item) {
+        if (!/^pathitem/i.test(item.typename) || !hasIsolatedPointSelection(item))
+            return item;
+        else
+            return get("pathPoints", item).filter(function (point) {
+                return point.selected == PathPointSelection.ANCHORPOINT;
+            });
+    })
+        .flat();
+}
+function getSelectionBoundingBox() {
+    if (!app.selection.length)
+        return null;
+    var wholeSelection = get("selection").filter(function (item) {
+        return (!/^pathitem/i.test(item.typename) || !hasIsolatedPointSelection(item));
+    });
+    var pointSelection = get("selection").filter(function (item) {
+        return /^pathitem/i.test(item.typename) && hasIsolatedPointSelection(item);
+    });
+    var pointSelectionAnchors = pointSelection.map(function (item) {
+        return get("pathPoints", item)
+            .filter(function (point) {
+            return point.selected == PathPointSelection.ANCHORPOINT;
+        })
+            .map(function (point) {
+            return point.anchor;
+        });
+    });
+    var pointXs = pointSelectionAnchors
+        .map(function (targ) {
+        return targ.map(function (pointX) {
+            return pointX[0];
+        });
+    })
+        .flat();
+    var pointYs = pointSelectionAnchors
+        .map(function (targ) {
+        return targ.map(function (pointY) {
+            return pointY[1];
+        });
+    })
+        .flat();
+    var x1 = []
+        .concat(wholeSelection.map(function (item) { return item.geometricBounds[0]; }), pointXs)
+        .min();
+    var x2 = []
+        .concat(wholeSelection.map(function (item) { return item.geometricBounds[2]; }), pointXs)
+        .max();
+    var y1 = []
+        .concat(wholeSelection.map(function (item) { return item.geometricBounds[1]; }), pointYs)
+        .max();
+    var y2 = []
+        .concat(wholeSelection.map(function (item) { return item.geometricBounds[3]; }), pointYs)
+        .min();
+    return [x1, y1, x2, y2];
+}
+function hasIsolatedPointSelection(item) {
+    return (get("pathPoints", item).filter(function (point) {
+        return point.selected == PathPointSelection.ANCHORPOINT;
+    }).length !== item.pathPoints.length);
+}
+function getArtboardBoundingClientRect() {
+    var activeBoard = app.activeDocument.artboards[app.activeDocument.artboards.getActiveArtboardIndex()];
+    var rect = activeBoard.artboardRect;
+    var data = {
+        left: rect[0],
+        top: rect[1] * -1,
+        right: rect[2],
+        bottom: rect[3] * -1,
+        width: rect[2] - rect[0],
+        height: (rect[3] - rect[1]) * -1
+    };
+    return {
+        left: data.left,
+        top: data.top,
+        right: data.right,
+        bottom: data.bottom,
+        width: data.width,
+        height: data.height,
+        center: [data.left + data.width / 2, data.top + data.height / 2]
+    };
+}
+function getBoundingClientRect(target) {
+    var rect = target.geometricBounds;
+    var data = {
+        left: rect[0],
+        top: rect[1] * -1,
+        right: rect[2],
+        bottom: rect[3] * -1,
+        width: rect[2] - rect[0],
+        height: (rect[3] - rect[1]) * -1
+    };
+    return {
+        left: data.left,
+        top: data.top,
+        right: data.right,
+        bottom: data.bottom,
+        width: data.width,
+        height: data.height,
+        center: [data.left + data.width / 2, data.top + data.height / 2]
+    };
+}
+function getSelectionBoundingClientRect(rect) {
+    if (!rect || arguments.length < 1)
+        rect = getSelectionBoundingBox();
+    var data = {
+        left: rect[0],
+        top: rect[1] * -1,
+        right: rect[2],
+        bottom: rect[3] * -1,
+        width: rect[2] - rect[0],
+        height: (rect[3] - rect[1]) * -1
+    };
+    return {
+        left: data.left,
+        top: data.top,
+        right: data.right,
+        bottom: data.bottom,
+        width: data.width,
+        height: data.height,
+        center: [data.left + data.width / 2, data.top + data.height / 2]
+    };
+}
+console.log("HOST ONLINE");

@@ -2,6 +2,7 @@
   <div id="app">
     <Menus refresh debug :context="dynamicContextMenu" />
     <Watcher
+      v-if="scanSelection"
       v-model="selectionLength"
       property="app.selection.length"
       :interval="200"
@@ -17,7 +18,7 @@
           <Button
             v-for="(item, i) in extraFuncs"
             :key="i"
-            @clickevt="switchMode(item)"
+            @clickevt="switchModeHandler(item)"
             ><Icons
               :color="
                 item.active ? 'var(--color-selection)' : 'var(--color-default)'
@@ -41,22 +42,11 @@
           /></Button>
         </Button-Group>
         <Divider v-if="size.width > 70" />
-
-        <!-- <Anno
-          v-if="notMini && this.showAnno"
-          style="height: 16px; white-space: nowrap;"
-          size="10px"
-          :color="
-            `var(--color-${this.hasAnno ? 'default' : 'scrollbar-arrow'})`
-          "
-          >{{ anno }}</Anno
-        > -->
-        <!-- If panel is thin, become CSS grid so buttons expand in size -->
         <Grid v-if="isGridDisplay" :template="dynamicGridTemplate">
           <Button
             v-for="(item, i) in list"
             :key="i"
-            :disabled="!canUsePathfinder"
+            :disabled="!canUseAlign"
             @clickevt="clickHandler(item, $event)"
             @mouseenter="currentTool = item.icon"
             @mouseleave="currentTool = null"
@@ -71,7 +61,7 @@
             v-for="(item, i) in list"
             :key="i"
             @clickevt="clickHandler(item, $event)"
-            :disabled="!canUsePathfinder"
+            :disabled="!canUseAlign"
             @mouseenter="currentTool = item.icon"
             @mouseleave="currentTool = null"
             ><Icons :name="item.icon"
@@ -120,16 +110,8 @@ export default {
     Icons: require("./components/Icons.vue").default,
   },
   computed: {
-    hasAnno() {
-      return this.showAnno && this.currentTool && this.currentTool.length;
-    },
-    anno() {
-      return this.currentTool
-        ? this.capitalizePhrase(this.currentTool)
-        : "None";
-    },
-    canUsePathfinder() {
-      return this.selectionLength > 1 || !this.useResponsiveToolbar;
+    canUseAlign() {
+      return true;
     },
     notMini() {
       return this.size.width > 70;
@@ -140,7 +122,7 @@ export default {
       });
     },
     activeMode() {
-      return this.activeExtraFunc.icon[0];
+      return this.activeExtraFunc.icon;
     },
     dynamicGridTemplate() {
       return this.size.width < 88
@@ -152,37 +134,23 @@ export default {
     dynamicContextMenu() {
       return [
         {
-          label: "Responsive UI",
+          label: "Align Handles",
           checkable: true,
-          checked: this.useResponsiveToolbar,
-          callback: this.assignResponsiveUI,
+          checked: this.alignHandles,
+          callback: this.assignAlignHandles,
         },
         {
-          label: "Extra functions",
-          checkable: true,
-          checked: this.hasExtraFuncs,
-          callback: this.assignExtras,
-        },
-        {
-          label: "Retain selection",
-          checkable: true,
-          checked: this.combSelection,
-          callback: this.assignCombSelection,
-        },
-        {
-          label: "Live preview",
+          label: "Scan selection",
           checkable: true,
           enabled: false,
           checked: false,
-          callback: this.assignPreview,
+          callback: this.assignScanSelection,
         },
       ];
     },
     prefs() {
       return {
-        useResponsiveToolbar: this.useResponsiveToolbar,
-        combSelection: this.combSelection,
-        showAnno: this.showAnno,
+        alignHandles: this.alignHandles,
       };
     },
     dynamicButtonList() {
@@ -201,15 +169,15 @@ export default {
   },
   data: () => ({
     currentTool: "",
-    useResponsiveToolbar: true,
+    useResponsiveToolbar: false,
     selectionLength: 0,
     spacing: 0,
-    showAnno: true,
     alignTo: "selection",
+    alignHandles: false,
+    lastMode: "selection",
     hasExtraFuncs: true,
-    combSelection: true,
+    scanSelection: false,
     isGridDisplay: null,
-    enablePreview: false,
     isAlt: false,
     inside: false,
     size: {
@@ -283,19 +251,36 @@ export default {
       },
       deep: true,
     },
-    currentTool(val) {
-      // console.log(val);
-      // if (this.selectionLength > 1) {
-      //   if (val && val.length) this.$refs.preview.grabSelection();
-      // } else {
-      //   console.log("NONE");
-      // }
+    lastMode(val) {
+      console.log("LAST MODE:", val);
+    },
+    async inside(val) {
+      if (val && !this.scanSelection) {
+        this.selectionLength = await evalScript(`getRealSelectionLength()`);
+      }
+      if (val && this.selectionLength == 1) {
+        this.lastMode = this.activeMode;
+        this.switchMode("artboard");
+      } else if (
+        (val && this.selectionLength > 1) ||
+        (val && this.selectionLength == 0)
+      )
+        this.switchMode(this.lastMode);
     },
   },
   methods: {
+    switchModeHandler(item) {
+      this.lastMode = item.icon;
+      this.switchMode(item);
+    },
     switchMode(item) {
-      this.makeActiveMode(item);
-      item.active = true;
+      let temp = /string/i.test(typeof item)
+        ? (temp = this.extraFuncs.find((entry) => {
+            return entry.icon == item;
+          }))
+        : item;
+      this.makeActiveMode(temp);
+      temp.active = true;
     },
     makeActiveMode(item) {
       this.extraFuncs.forEach((f) => {
@@ -306,37 +291,34 @@ export default {
       this.currentTool = null;
       this.isGridDisplay = window.innerWidth < 150;
     },
-    assignShowAnno(v, i, a) {
-      this.showAnno = a;
+    assignScanSelection(v, i, a) {
+      this.scanSelection = a;
     },
-    assignResponsiveUI(v, i, a) {
-      this.useResponsiveToolbar = a;
-    },
-    assignCombSelection(v, i, a) {
-      this.combSelection = a;
-    },
-    assignExtras(v, i, a) {
-      this.hasExtraFuncs = a;
-    },
-    assignPreview(v, i, a) {
-      this.enablePreview = a;
+    assignAlignHandles(v, i, a) {
+      this.alignHandles = a;
     },
     async distributeHandler(item, evt) {
       let opts = this.prefs,
         result;
-      if (/horizontal/i.test(item.icon))
-        await evalScript(`distributeHorizontalBySpacing(${this.spacing})`);
-      else await evalScript(`distributeVerticalBySpacing(${this.spacing})`);
+      console.log(item, evt);
+      // if (/horizontal/i.test(item.icon))
+      //   await evalScript(`distributeHorizontalBySpacing(${this.spacing})`);
+      // else await evalScript(`distributeVerticalBySpacing(${this.spacing})`);
     },
     async clickHandler(item, evt) {
       let opts = this.prefs;
       if (!item.code) {
-        let str = `${this.activeMode}-${item.icon
-          .replace(/horizontal/, "hor")
-          .replace(/vertical/, "ver")}`;
-        console.log(str);
+        console.log(item, evt, this.activeMode);
+        let params = item.icon.split("-");
+        let msg = {
+          mode: params[0],
+          axis: params[1],
+          direction: params[2],
+          type: this.activeMode,
+        };
+
         let result = await evalScript(
-          `executeAction('${str}', '${JSON.stringify(opts)}')`
+          `${msg.mode}To('${JSON.stringify(msg)}', '${JSON.stringify(opts)}')`
         );
       }
     },
@@ -350,21 +332,6 @@ export default {
       Object.keys(data).forEach((key) => {
         this[key] = data[key];
       });
-    },
-    capitalizePhrase(phrase) {
-      function capitalize(string) {
-        return string[0].toUpperCase() + string.substring(1);
-      }
-      return !phrase.length
-        ? ""
-        : !/\s/.test(phrase)
-        ? capitalize(phrase)
-        : phrase
-            .split(" ")
-            .map((item) => {
-              return capitalize(item);
-            })
-            .join(" ");
     },
   },
 };
