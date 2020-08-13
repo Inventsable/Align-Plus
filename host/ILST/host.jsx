@@ -16,8 +16,22 @@ function getRealSelectionLength() {
     return getValidSelectionItems().length;
 }
 function distributeTo(params, opts) {
-    alert("Not yet supported");
+    if (!app.selection.length)
+        return null;
+    params = JSON.parse(params);
+    opts = JSON.parse(opts);
+    var parentRect = /artboard/i.test(params.type)
+        ? getArtboardBoundingClientRect()
+        : getSelectionBoundingClientRect();
+    var target = parentRect[params.direction];
+    var selection = getValidSelectionItems();
+    var distribution = getDistribution(selection, parentRect, params.direction);
+    getValidSelectionItems().forEach(function (item, i) {
+        distributeHandler(item, params.direction, target, opts);
+    });
 }
+function getDistribution(items, rect, direction) { }
+function distributeHandler(item, key, value, opts) { }
 function alignHandler(item, key, value, opts) {
     if (/point/i.test(item.typename))
         alignPointTo(item, key, value, opts);
